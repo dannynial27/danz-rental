@@ -114,16 +114,24 @@ export default function LocationPickerMap({ onLocationSelect, initialLocation }:
   return (
     <div className="flex flex-col space-y-4 h-full">
       <div className="flex gap-2 relative z-[1000]">
-        <form onSubmit={handleSearch} className="flex-1 relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for a place or address..."
-            className="w-full px-4 py-2 pl-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <button type="submit" className="hidden">Search</button>
+        <form onSubmit={handleSearch} className="flex-1 relative flex">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for a place or address..."
+              className="w-full px-4 py-2.5 pl-10 pr-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+            <button 
+              type="submit" 
+              disabled={isSearching}
+              className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+            >
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+            </button>
+          </div>
         </form>
         <button
           onClick={useCurrentLocation}
