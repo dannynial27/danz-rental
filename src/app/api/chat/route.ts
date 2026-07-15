@@ -1,17 +1,27 @@
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-const SYSTEM_PROMPT = `You are the "DANZ RENTAL Premium AI Assistant", a friendly, professional, and luxurious-feeling rental consultant for DANZ RENTAL, a top-tier car rental service in Penang, Malaysia.
+function getSystemPrompt(currentDate: string, bookedDatesText: string) {
+  return `You are the "DANZ RENTAL Premium AI Assistant", a friendly, professional, and luxurious-feeling rental consultant for DANZ RENTAL, a top-tier car rental service in Penang, Malaysia.
 
-Your primary goal is to provide accurate, helpful answers based strictly on the provided knowledge base, and to guide users to book via WhatsApp.
+Your primary goal is to provide accurate, helpful answers based strictly on the provided knowledge base, and to guide users to book.
+
+**Important Context:**
+- Today's Date: ${currentDate}
+- Current Booked Cars & Dates (Do not offer these cars for these dates):
+${bookedDatesText || "No upcoming bookings. All cars are fully available."}
 
 **Important Rules:**
 1. DO NOT HALLUCINATE. Only answer based on the knowledge provided below.
 2. Keep responses short, highly readable, and formatted cleanly (use bullet points or bold text if helpful).
 3. Be friendly and professional. Use emojis sparingly but effectively.
 4. If a user asks a question not covered by the knowledge base, politely apologize and suggest they contact the team directly via WhatsApp for the most accurate answer.
-5. If the user expresses intent to book, rent, or asks "how to book", ALWAYS provide them with a clear instruction to click the "Book via WhatsApp" button or use this link: https://wa.me/60124516452
-6. Never make up prices, cars, or policies.
+5. If the user asks if a car is available for a date, check the "Current Booked Cars" list above. If it is booked, tell them it is unavailable and suggest another car.
+6. If the user expresses intent to book, rent, or asks "how to book", tell them they can click the "Book Now" button on any vehicle card on our website, or use this link: https://wa.me/60124516452
+7. Never make up prices, cars, or policies.
 
 **Knowledge Base:**
 
@@ -41,12 +51,12 @@ Your primary goal is to provide accurate, helpful answers based strictly on the 
 - Insurance: Vehicles are fully insured, but renters must follow standard procedures in case of accidents.
 
 *Booking Process:*
-1. Choose vehicle.
-2. Contact via WhatsApp with rental dates and chosen vehicle.
-3. Confirm booking.
-4. Pick up car.
+1. Choose vehicle on the website.
+2. Click "Book Now" to fill in your dates and details.
+3. We will contact you to confirm the booking and arrange payment.
 
 Respond enthusiastically and assist the user!`;
+}
 
 export async function POST(req: Request) {
   try {
@@ -61,9 +71,40 @@ export async function POST(req: Request) {
 
     const openRouterApiKey = process.env.OPENROUTER_API_KEY || "";
 
+    // Fetch bookings for availability awareness
+    let bookedDatesText = "";
+    try {
+      const q = query(
+        collection(db, "bookings"),
+        where("status", "in", ["Pending", "Approved"])
+      );
+      const snapshot = await getDocs(q);
+      const bookingsByCar: Record<string, string[]> = {};
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (!bookingsByCar[data.carName]) {
+          bookingsByCar[data.carName] = [];
+        }
+        bookingsByCar[data.carName].push(`${data.pickupDate} to ${data.returnDate}`);
+      });
+      
+      bookedDatesText = Object.entries(bookingsByCar)
+        .map(([carName, dates]) => `- ${carName}: Booked on ${dates.join(", ")}`)
+        .join("\n");
+    } catch (err) {
+      console.error("Failed to fetch bookings for chat context", err);
+    }
+
+    const currentDate = new Date().toLocaleDateString("en-MY", { 
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    });
+
+    const currentSystemPrompt = getSystemPrompt(currentDate, bookedDatesText);
+
     // Format messages for OpenRouter (OpenAI format)
     const formattedMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: currentSystemPrompt },
       ...messages.map((msg: any) => ({
         role: msg.role === "assistant" ? "assistant" : "user",
         content: msg.content
