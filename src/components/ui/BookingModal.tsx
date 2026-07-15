@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Calendar, MapPin, User, Phone, Mail, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Car } from "@/data/cars";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export interface BookingData {
@@ -32,7 +32,7 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
     pickupLocation: "",
     returnLocation: "",
   });
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error" | "clash">("idle");
 
   useEffect(() => {
     if (isOpen) {
@@ -58,6 +58,35 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
     setStatus("submitting");
     
     try {
+      // Clash Detection
+      const bookingsRef = collection(db, "bookings");
+      const q = query(
+        bookingsRef,
+        where("carId", "==", car.id),
+        where("status", "in", ["Pending", "Approved"])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const reqStart = new Date(formData.pickupDate).getTime();
+      const reqEnd = new Date(formData.returnDate).getTime();
+      
+      let isClash = false;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const existingStart = new Date(data.pickupDate).getTime();
+        const existingEnd = new Date(data.returnDate).getTime();
+        
+        // Check overlap: Start A <= End B && End A >= Start B
+        if (reqStart <= existingEnd && reqEnd >= existingStart) {
+          isClash = true;
+        }
+      });
+      
+      if (isClash) {
+        setStatus("clash");
+        return;
+      }
+
       await addDoc(collection(db, "bookings"), {
         ...formData,
         carId: car.id,
@@ -202,6 +231,11 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
                 {status === "error" && (
                   <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm font-medium">
                     An error occurred while submitting your booking. Please try again or contact us directly.
+                  </div>
+                )}
+                {status === "clash" && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium border border-amber-200 dark:border-amber-800">
+                    Sorry, this vehicle is already booked for the selected dates. Please choose different dates or another vehicle.
                   </div>
                 )}
 
