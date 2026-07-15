@@ -13,6 +13,7 @@ import { useCars } from "@/context/CarsContext";
 
 export function Fleet() {
   const { cars, loading } = useCars();
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
@@ -36,10 +37,29 @@ export function Fleet() {
     window.open(`https://wa.me/60124516452?text=${message}`, "_blank");
   };
 
+  const categories = ["All", ...Array.from(new Set(cars.map(car => car.type)))];
+  
+  const filteredCars = selectedCategory === "All" 
+    ? cars 
+    : cars.filter(car => car.type === selectedCategory);
+
+  if (loading) {
+    return (
+      <section id="fleet" className="py-24 bg-slate-50 dark:bg-slate-900/50 relative">
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 flex justify-center items-center min-h-[400px]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-slate-500 font-medium animate-pulse">Loading premium fleet...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="fleet" className="py-24 bg-slate-50 dark:bg-slate-900/50 relative">
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
           <div className="max-w-2xl">
             <h2 className="text-sm font-bold tracking-widest text-primary uppercase mb-3">
               Our Premium Fleet
@@ -63,8 +83,25 @@ export function Fleet() {
           )}
         </div>
 
+        {/* Categories */}
+        <div className="flex flex-wrap gap-2 mb-10">
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+                selectedCategory === category
+                  ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
+                  : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {cars.map((car, index) => (
+          {filteredCars.map((car, index) => (
             <motion.div
               key={car.id}
               initial={{ opacity: 0, y: 30 }}
