@@ -2,11 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Calendar, MapPin, User, Phone, Mail, CheckCircle, Loader2 } from "lucide-react";
+import { X, Calendar as CalendarIcon, MapPin, User, Phone, Mail, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Car } from "@/data/cars";
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
+import { eachDayOfInterval, format, parseISO } from "date-fns";
 
 export interface BookingData {
   pickupDate: string;
@@ -27,25 +30,71 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
     name: "",
     phone: "",
     email: "",
-    pickupDate: "",
-    returnDate: "",
     pickupLocation: "",
     returnLocation: "",
   });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [disabledDates, setDisabledDates] = useState<Date[]>([]);
+  const [isLoadingDates, setIsLoadingDates] = useState(false);
+  
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error" | "clash">("idle");
 
   useEffect(() => {
     if (isOpen) {
       setFormData(prev => ({
         ...prev,
-        pickupDate: initialData?.pickupDate || "",
-        returnDate: initialData?.returnDate || "",
         pickupLocation: initialData?.pickupLocation || "",
         returnLocation: initialData?.returnLocation || "",
       }));
+      
+      if (initialData?.pickupDate) {
+        setDateRange({
+          from: new Date(initialData.pickupDate),
+          to: initialData.returnDate ? new Date(initialData.returnDate) : undefined
+        });
+      } else {
+        setDateRange(undefined);
+      }
+      
       setStatus("idle");
+      
+      if (car) {
+        fetchBookedDates(car.id);
+      }
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, car]);
+
+  const fetchBookedDates = async (carId: number) => {
+    setIsLoadingDates(true);
+    try {
+      const bookingsRef = collection(db, "bookings");
+      const q = query(
+        bookingsRef,
+        where("carId", "==", carId),
+        where("status", "in", ["Pending", "Approved"])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let blocked: Date[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.pickupDate && data.returnDate) {
+          const start = new Date(data.pickupDate);
+          const end = new Date(data.returnDate);
+          
+          const datesInInterval = eachDayOfInterval({ start, end });
+          blocked = [...blocked, ...datesInInterval];
+        }
+      });
+      
+      setDisabledDates(blocked);
+    } catch (error) {
+      console.error("Error fetching booked dates:", error);
+    } finally {
+      setIsLoadingDates(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -53,34 +102,28 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!car) return;
+    if (!car || !dateRange?.from || !dateRange?.to) return;
     
     setStatus("submitting");
     
+    // Format dates to string
+    const pickupDateStr = format(dateRange.from, "yyyy-MM-dd");
+    const returnDateStr = format(dateRange.to, "yyyy-MM-dd");
+    
     try {
-      // Clash Detection
-      const bookingsRef = collection(db, "bookings");
-      const q = query(
-        bookingsRef,
-        where("carId", "==", car.id),
-        where("status", "in", ["Pending", "Approved"])
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const reqStart = new Date(formData.pickupDate).getTime();
-      const reqEnd = new Date(formData.returnDate).getTime();
-      
+      // Re-verify clash detection on submit just in case
+      const reqStart = dateRange.from.getTime();
+      const reqEnd = dateRange.to.getTime();
       let isClash = false;
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const existingStart = new Date(data.pickupDate).getTime();
-        const existingEnd = new Date(data.returnDate).getTime();
-        
-        // Check overlap: Start A <= End B && End A >= Start B
-        if (reqStart <= existingEnd && reqEnd >= existingStart) {
+      
+      // Quick check against our loaded disabledDates
+      for (const d of disabledDates) {
+        const dTime = d.getTime();
+        if (dTime >= reqStart && dTime <= reqEnd) {
           isClash = true;
+          break;
         }
-      });
+      }
       
       if (isClash) {
         setStatus("clash");
@@ -89,6 +132,8 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
 
       await addDoc(collection(db, "bookings"), {
         ...formData,
+        pickupDate: pickupDateStr,
+        returnDate: returnDateStr,
         carId: car.id,
         carName: car.name,
         pricePerDay: car.price,
@@ -119,7 +164,7 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-2xl bg-white dark:bg-slate-950 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="relative w-full max-w-4xl bg-white dark:bg-slate-950 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
           <div className="flex justify-between items-center p-6 border-b border-slate-100 dark:border-slate-800">
@@ -150,109 +195,140 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-slate-900 dark:text-white text-lg border-b border-slate-100 dark:border-slate-800 pb-2">Personal Details</h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" /> Full Name
-                      </label>
-                      <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="John Doe" />
-                    </div>
+              <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-8">
+                
+                {/* Left Column: Form Details */}
+                <div className="flex-1 space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-slate-900 dark:text-white text-lg border-b border-slate-100 dark:border-slate-800 pb-2">Personal Details</h3>
                     
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-slate-400" /> Phone Number
-                      </label>
-                      <input required type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="+60 12-345 6789" />
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          <User className="w-4 h-4 text-slate-400" /> Full Name
+                        </label>
+                        <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="John Doe" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-slate-400" /> Phone Number
+                        </label>
+                        <input required type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="+60 12-345 6789" />
+                      </div>
+                    
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-slate-400" /> Email Address
+                        </label>
+                        <input required type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="john@example.com" />
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-slate-400" /> Email Address
-                    </label>
-                    <input required type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50" placeholder="john@example.com" />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-slate-900 dark:text-white text-lg border-b border-slate-100 dark:border-slate-800 pb-2">Rental Schedule</h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400" /> Pickup Date
-                      </label>
-                      <input required type="date" name="pickupDate" value={formData.pickupDate} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white" />
-                    </div>
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-slate-900 dark:text-white text-lg border-b border-slate-100 dark:border-slate-800 pb-2">Locations</h3>
                     
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400" /> Return Date
-                      </label>
-                      <input required type="date" name="returnDate" value={formData.returnDate} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white" />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400" /> Pickup Location
-                      </label>
-                      <select required name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white">
-                        <option value="">Select location</option>
-                        <option value="Penang International Airport">Penang International Airport</option>
-                        <option value="Georgetown">Georgetown</option>
-                        <option value="Bayan Lepas">Bayan Lepas</option>
-                        <option value="Batu Ferringhi">Batu Ferringhi</option>
-                        <option value="Mainland (Butterworth)">Mainland (Butterworth)</option>
-                      </select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400" /> Return Location
-                      </label>
-                      <select required name="returnLocation" value={formData.returnLocation} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white">
-                        <option value="">Select location</option>
-                        <option value="Penang International Airport">Penang International Airport</option>
-                        <option value="Georgetown">Georgetown</option>
-                        <option value="Bayan Lepas">Bayan Lepas</option>
-                        <option value="Batu Ferringhi">Batu Ferringhi</option>
-                        <option value="Mainland (Butterworth)">Mainland (Butterworth)</option>
-                      </select>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-slate-400" /> Pickup Location
+                        </label>
+                        <select required name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white">
+                          <option value="">Select location</option>
+                          <option value="Penang International Airport">Penang International Airport</option>
+                          <option value="Georgetown">Georgetown</option>
+                          <option value="Bayan Lepas">Bayan Lepas</option>
+                          <option value="Batu Ferringhi">Batu Ferringhi</option>
+                          <option value="Mainland (Butterworth)">Mainland (Butterworth)</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-slate-400" /> Return Location
+                        </label>
+                        <select required name="returnLocation" value={formData.returnLocation} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white">
+                          <option value="">Select location</option>
+                          <option value="Penang International Airport">Penang International Airport</option>
+                          <option value="Georgetown">Georgetown</option>
+                          <option value="Bayan Lepas">Bayan Lepas</option>
+                          <option value="Batu Ferringhi">Batu Ferringhi</option>
+                          <option value="Mainland (Butterworth)">Mainland (Butterworth)</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {status === "error" && (
-                  <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm font-medium">
-                    An error occurred while submitting your booking. Please try again or contact us directly.
-                  </div>
-                )}
-                {status === "clash" && (
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium border border-amber-200 dark:border-amber-800">
-                    Sorry, this vehicle is already booked for the selected dates. Please choose different dates or another vehicle.
-                  </div>
-                )}
-
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <Button type="submit" disabled={status === "submitting"} className="w-full rounded-xl h-14 text-lg font-bold shadow-xl shadow-primary/20">
-                    {status === "submitting" ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Submitting...
-                      </>
+                {/* Right Column: Calendar */}
+                <div className="flex-1 space-y-4 md:border-l md:border-slate-100 md:dark:border-slate-800 md:pl-8">
+                  <h3 className="font-semibold text-slate-900 dark:text-white text-lg border-b border-slate-100 dark:border-slate-800 pb-2">Select Rental Dates</h3>
+                  
+                  <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-center">
+                    {isLoadingDates ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                        <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                        <p>Checking availability...</p>
+                      </div>
                     ) : (
-                      "Confirm Booking Request"
+                      <Calendar
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        disabled={[{ before: new Date() }, ...disabledDates]}
+                        numberOfMonths={1}
+                        className="bg-transparent"
+                      />
                     )}
-                  </Button>
-                  <p className="text-center text-xs text-slate-500 mt-4">
-                    By submitting this request, you agree to our terms of service and cancellation policy. No payment is required right now.
-                  </p>
+                  </div>
+
+                  <div className="space-y-2 mt-4 text-sm text-slate-600 dark:text-slate-400">
+                    <p className="flex justify-between">
+                      <span>Pickup:</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {dateRange?.from ? format(dateRange.from, "PPP") : "Select date"}
+                      </span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>Return:</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {dateRange?.to ? format(dateRange.to, "PPP") : "Select date"}
+                      </span>
+                    </p>
+                  </div>
+
+                  {status === "error" && (
+                    <div className="p-4 mt-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm font-medium">
+                      An error occurred while submitting your booking. Please try again or contact us directly.
+                    </div>
+                  )}
+                  {status === "clash" && (
+                    <div className="p-4 mt-4 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium border border-amber-200 dark:border-amber-800">
+                      Sorry, your selected dates overlap with an existing booking. Please choose different dates.
+                    </div>
+                  )}
+
+                  <div className="pt-6 mt-auto">
+                    <Button 
+                      type="submit" 
+                      disabled={status === "submitting" || !dateRange?.from || !dateRange?.to} 
+                      className="w-full rounded-xl h-14 text-lg font-bold shadow-xl shadow-primary/20"
+                    >
+                      {status === "submitting" ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Submitting...
+                        </>
+                      ) : (
+                        "Confirm Booking Request"
+                      )}
+                    </Button>
+                    <p className="text-center text-xs text-slate-500 mt-4">
+                      By submitting this request, you agree to our terms of service. No payment is required right now.
+                    </p>
+                  </div>
                 </div>
+
               </form>
             )}
           </div>
