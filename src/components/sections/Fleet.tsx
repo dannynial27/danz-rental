@@ -146,24 +146,7 @@ export function Fleet() {
                     className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-700 ease-[0.33,1,0.68,1]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  {/* Hover Buttons on Image */}
-                  <div className="absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[0.33,1,0.68,1] z-20 hidden md:flex gap-3">
-                    <Button 
-                      className="flex-1 rounded-xl h-12 text-sm font-semibold shadow-xl"
-                      variant="secondary"
-                      onClick={(e) => { e.stopPropagation(); setSelectedCar(car); }}
-                    >
-                      <Info className="w-4 h-4 mr-2" /> Details
-                    </Button>
-                    <Button 
-                      className="flex-1 rounded-xl h-12 text-sm font-semibold shadow-xl shadow-primary/30"
-                      onClick={(e) => handleWhatsApp(e, car.name)}
-                      disabled={car.availability === "Booked"}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" /> Book
-                    </Button>
-                  </div>
+                  {/* Image Hover Gradient */}
                 </div>
                 
                 <CardContent className="p-6 relative z-10 bg-white dark:bg-slate-900">
@@ -201,8 +184,8 @@ export function Fleet() {
                   </div>
                 </CardContent>
                 
-                {/* Mobile Button (Hidden on Desktop hover) */}
-                <CardFooter className="p-6 pt-0 md:group-hover:hidden transition-all duration-300 bg-white dark:bg-slate-900 relative z-10 flex gap-3">
+                {/* Action Buttons */}
+                <CardFooter className="p-6 pt-0 bg-white dark:bg-slate-900 relative z-10 flex gap-3">
                   <Button 
                     className="flex-1 rounded-xl h-11 text-sm font-semibold border border-slate-200 dark:border-slate-800 shadow-sm"
                     variant="outline"
