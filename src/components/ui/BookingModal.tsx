@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 import { eachDayOfInterval, format, parseISO } from "date-fns";
+import { LocationPicker } from "@/components/ui/LocationPicker";
 
 export interface BookingData {
   pickupDate: string;
@@ -36,6 +37,7 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [disabledDates, setDisabledDates] = useState<Date[]>([]);
   const [isLoadingDates, setIsLoadingDates] = useState(false);
+  const [activeMap, setActiveMap] = useState<"pickup" | "return" | null>(null);
   
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error" | "clash">("idle");
 
@@ -229,34 +231,75 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
                   <div className="space-y-4">
                     <h3 className="font-semibold text-slate-900 dark:text-white text-lg border-b border-slate-100 dark:border-slate-800 pb-2">Locations</h3>
                     
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-slate-400" /> Pickup Location
-                        </label>
-                        <select required name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white">
-                          <option value="">Select location</option>
-                          <option value="Penang International Airport">Penang International Airport</option>
-                          <option value="Georgetown">Georgetown</option>
-                          <option value="Bayan Lepas">Bayan Lepas</option>
-                          <option value="Batu Ferringhi">Batu Ferringhi</option>
-                          <option value="Mainland (Butterworth)">Mainland (Butterworth)</option>
-                        </select>
-                      </div>
+                    <div className="space-y-6">
+                      {activeMap === "pickup" ? (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-primary" /> Select Pickup on Map
+                            </label>
+                            <button type="button" onClick={() => setActiveMap(null)} className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">Cancel</button>
+                          </div>
+                          <div className="h-[350px]">
+                            <LocationPicker 
+                              initialLocation={formData.pickupLocation} 
+                              onLocationSelect={(loc) => { 
+                                setFormData(prev => ({...prev, pickupLocation: loc})); 
+                                setActiveMap(null); 
+                              }} 
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-slate-400" /> Pickup Location
+                          </label>
+                          <div 
+                            onClick={() => setActiveMap("pickup")}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 cursor-pointer flex justify-between items-center text-slate-900 dark:text-white hover:border-primary/50 transition-colors"
+                          >
+                            <span className="truncate">{formData.pickupLocation || "Tap to select on map"}</span>
+                            <MapPin className="w-4 h-4 text-primary" />
+                          </div>
+                          {/* Hidden input for HTML validation if required */}
+                          <input type="hidden" required name="pickupLocation" value={formData.pickupLocation} />
+                        </div>
+                      )}
                       
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-slate-400" /> Return Location
-                        </label>
-                        <select required name="returnLocation" value={formData.returnLocation} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white">
-                          <option value="">Select location</option>
-                          <option value="Penang International Airport">Penang International Airport</option>
-                          <option value="Georgetown">Georgetown</option>
-                          <option value="Bayan Lepas">Bayan Lepas</option>
-                          <option value="Batu Ferringhi">Batu Ferringhi</option>
-                          <option value="Mainland (Butterworth)">Mainland (Butterworth)</option>
-                        </select>
-                      </div>
+                      {activeMap === "return" ? (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-primary" /> Select Return on Map
+                            </label>
+                            <button type="button" onClick={() => setActiveMap(null)} className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">Cancel</button>
+                          </div>
+                          <div className="h-[350px]">
+                            <LocationPicker 
+                              initialLocation={formData.returnLocation} 
+                              onLocationSelect={(loc) => { 
+                                setFormData(prev => ({...prev, returnLocation: loc})); 
+                                setActiveMap(null); 
+                              }} 
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-slate-400" /> Return Location
+                          </label>
+                          <div 
+                            onClick={() => setActiveMap("return")}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 cursor-pointer flex justify-between items-center text-slate-900 dark:text-white hover:border-primary/50 transition-colors"
+                          >
+                            <span className="truncate">{formData.returnLocation || "Tap to select on map"}</span>
+                            <MapPin className="w-4 h-4 text-primary" />
+                          </div>
+                          <input type="hidden" required name="returnLocation" value={formData.returnLocation} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
