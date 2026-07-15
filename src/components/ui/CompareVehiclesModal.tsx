@@ -132,7 +132,7 @@ export function CompareVehiclesModal({ cars, isOpen, onClose, onRemove }: Compar
                           className="w-full rounded-xl" 
                           onClick={() => {
                             const message = encodeURIComponent(`Hi DANZ RENTAL, I am interested in renting the ${car.name}. Is it available?`);
-                            window.open(`https://wa.me/60124516452?text=${message}`, "_blank");
+                            window.location.href = `https://wa.me/60124516452?text=${message}`;
                           }}
                           disabled={car.availability === "Booked"}
                         >

@@ -43,7 +43,7 @@ export function QuickBookingWidget() {
   const handleContinueToWhatsApp = () => {
     const carName = cars.find(c => c.name === selectedCar)?.name || "a car";
     const message = encodeURIComponent(`Hi DANZ RENTAL, I would like to book:\n\n🚗 Vehicle: ${carName}\n📅 Pickup: ${pickupDate}\n📅 Return: ${returnDate}\n📍 Location: ${pickupLocation}\n\nPlease let me know if it's available.`);
-    window.open(`https://wa.me/60124516452?text=${message}`, "_blank");
+    window.location.href = `https://wa.me/60124516452?text=${message}`;
     setIsRedirecting(false);
   };
 

@@ -27,7 +27,7 @@ export function Navigation() {
   }, []);
 
   const handleWhatsApp = () => {
-    window.open("https://wa.me/60124516452", "_blank");
+    window.location.href = "https://wa.me/60124516452";
   };
 
   return (

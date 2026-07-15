@@ -34,7 +34,7 @@ export function Fleet() {
   const handleWhatsApp = (e: React.MouseEvent, carName: string) => {
     e.stopPropagation();
     const message = encodeURIComponent(`Hi DANZ RENTAL, I am interested in renting the ${carName}. Is it available?`);
-    window.open(`https://wa.me/60124516452?text=${message}`, "_blank");
+    window.location.href = `https://wa.me/60124516452?text=${message}`;
   };
 
   const categories = ["All", ...Array.from(new Set(cars.map(car => car.type)))];

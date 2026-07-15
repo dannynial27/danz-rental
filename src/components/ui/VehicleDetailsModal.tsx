@@ -50,7 +50,7 @@ export function VehicleDetailsModal({ car, isOpen, onClose }: VehicleDetailsModa
       `Duration: ${days} days\n` +
       `Estimated Total: RM${totalPrice} (including RM${car.deposit} deposit)`
     );
-    window.open(`https://wa.me/60124516452?text=${message}`, "_blank");
+    window.location.href = `https://wa.me/60124516452?text=${message}`;
   };
 
   return (

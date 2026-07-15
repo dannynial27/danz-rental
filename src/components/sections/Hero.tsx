@@ -11,7 +11,7 @@ export function Hero() {
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   const handleWhatsApp = () => {
-    window.open("https://wa.me/60124516452", "_blank");
+    window.location.href = "https://wa.me/60124516452";
   };
 
   const scrollToFleet = () => {

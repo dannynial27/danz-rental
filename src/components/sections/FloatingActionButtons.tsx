@@ -28,7 +28,7 @@ export function FloatingActionButtons() {
 
   const handleWhatsApp = () => {
     const message = encodeURIComponent("Hi DANZ RENTAL, I would like to make an inquiry.");
-    window.open(`https://wa.me/60124516452?text=${message}`, "_blank");
+    window.location.href = `https://wa.me/60124516452?text=${message}`;
   };
 
   return (

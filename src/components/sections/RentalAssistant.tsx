@@ -104,7 +104,7 @@ export function RentalAssistant() {
   };
 
   const handleWhatsAppClick = () => {
-    window.open("https://wa.me/60124516452", "_blank");
+    window.location.href = "https://wa.me/60124516452";
   };
 
   return (
