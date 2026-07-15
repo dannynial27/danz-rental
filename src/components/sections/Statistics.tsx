@@ -10,34 +10,26 @@ interface CounterProps {
   decimals?: number;
 }
 
+import { animate, useMotionValue, useTransform } from "framer-motion";
+
 function AnimatedCounter({ value, suffix = "", decimals = 0 }: CounterProps) {
-  const [count, setCount] = useState(0);
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (latest) => latest.toFixed(decimals));
   const ref = React.useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   useEffect(() => {
     if (isInView) {
-      let start = 0;
-      const duration = 2000; // 2 seconds
-      const increment = value / (duration / 16); // 60fps
-
-      const timer = setInterval(() => {
-        start += increment;
-        if (start >= value) {
-          setCount(value);
-          clearInterval(timer);
-        } else {
-          setCount(start);
-        }
-      }, 16);
-
-      return () => clearInterval(timer);
+      animate(count, value, {
+        duration: 2,
+        ease: "easeOut",
+      });
     }
-  }, [isInView, value]);
+  }, [isInView, value, count]);
 
   return (
-    <span ref={ref} className="text-4xl md:text-5xl font-black text-white">
-      {count.toFixed(decimals)}
+    <span ref={ref} className="text-4xl md:text-5xl font-black text-white flex items-center justify-center">
+      <motion.span>{rounded}</motion.span>
       {suffix}
     </span>
   );

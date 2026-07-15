@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   }
 };
 
+import { CarsProvider } from "@/context/CarsContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,7 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} scroll-smooth antialiased`}>
       <body className="min-h-screen bg-background text-foreground font-sans flex flex-col">
-        {children}
+        <CarsProvider>
+          {children}
+        </CarsProvider>
       </body>
     </html>
   );

@@ -12,18 +12,29 @@ import { LoadingScreen } from "@/components/sections/LoadingScreen";
 import { ScrollProgress } from "@/components/sections/ScrollProgress";
 import { FloatingActionButtons } from "@/components/sections/FloatingActionButtons";
 import { RentalAssistant } from "@/components/sections/RentalAssistant";
+import { QuickBookingWidget } from "@/components/sections/QuickBookingWidget";
+import { RentalRequirements } from "@/components/sections/RentalRequirements";
+import { PromotionBanner } from "@/components/sections/PromotionBanner";
+import { GoogleMapsSection } from "@/components/sections/GoogleMapsSection";
+import { AIRecommendation } from "@/components/sections/AIRecommendation";
+import { TrustIndicators } from "@/components/sections/TrustIndicators";
 
 export default function Home() {
   return (
     <>
       <LoadingScreen />
       <ScrollProgress />
+      <PromotionBanner />
       <Navigation />
       <main className="flex-grow">
         <Hero />
+        <TrustIndicators />
         <Features />
+        <AIRecommendation />
         <Fleet />
         <Process />
+        <RentalRequirements />
+        <GoogleMapsSection />
         <Testimonials />
         <Statistics />
         <FAQ />
@@ -32,6 +43,7 @@ export default function Home() {
       <Footer />
       <FloatingActionButtons />
       <RentalAssistant />
+      <QuickBookingWidget />
     </>
   );
 }

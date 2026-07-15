@@ -91,7 +91,7 @@ export function Process() {
                     viewport={{ once: true, margin: "-100px" }}
                     className="absolute left-8 md:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-[3px] border-primary flex items-center justify-center z-10 shadow-[0_0_20px_rgba(37,99,235,0.3)]"
                   >
-                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                    <div className="text-primary font-bold text-lg">{index + 1}</div>
                   </motion.div>
 
                   {/* Content */}
