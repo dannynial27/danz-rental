@@ -55,7 +55,6 @@ export default function LocationPickerMap({ onLocationSelect, initialLocation }:
           // Clean up the long address a bit
           const shortAddress = data.display_name.split(",").slice(0, 3).join(",");
           setCurrentAddress(shortAddress);
-          onLocationSelect(shortAddress);
         }
       } catch (error) {
         console.error("Geocoding error:", error);
@@ -68,7 +67,7 @@ export default function LocationPickerMap({ onLocationSelect, initialLocation }:
     }, 500);
     
     return () => clearTimeout(timeout);
-  }, [position, onLocationSelect]);
+  }, [position]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +150,17 @@ export default function LocationPickerMap({ onLocationSelect, initialLocation }:
           <MapUpdater center={position} />
         </MapContainer>
       </div>
-      <p className="text-xs text-slate-500 text-center">Click anywhere on the map to place a pin</p>
+      
+      <div className="flex justify-between items-center mt-2">
+        <p className="text-xs text-slate-500">Click anywhere on the map to place a pin</p>
+        <button
+          type="button"
+          onClick={() => onLocationSelect(currentAddress)}
+          className="px-6 py-2 bg-primary text-white font-semibold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+        >
+          Confirm Location
+        </button>
+      </div>
     </div>
   );
 }
