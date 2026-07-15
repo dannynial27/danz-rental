@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Car } from "@/data/cars";
 import { VehicleDetailsModal } from "@/components/ui/VehicleDetailsModal";
 import { CompareVehiclesModal } from "@/components/ui/CompareVehiclesModal";
+import { BookingModal } from "@/components/ui/BookingModal";
 import { useCars } from "@/context/CarsContext";
 
 export function Fleet() {
@@ -17,6 +18,7 @@ export function Fleet() {
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [bookingCar, setBookingCar] = useState<Car | null>(null);
 
   const toggleCompare = (e: React.MouseEvent, carId: number) => {
     e.stopPropagation();
@@ -31,10 +33,9 @@ export function Fleet() {
     }
   };
 
-  const handleWhatsApp = (e: React.MouseEvent, carName: string) => {
+  const handleWhatsApp = (e: React.MouseEvent, car: Car) => {
     e.stopPropagation();
-    const message = encodeURIComponent(`Hi DANZ RENTAL, I am interested in renting the ${carName}. Is it available?`);
-    window.location.href = `https://wa.me/60124516452?text=${message}`;
+    setBookingCar(car);
   };
 
   const categories = ["All", ...Array.from(new Set(cars.map(car => car.type)))];
@@ -195,7 +196,7 @@ export function Fleet() {
                   </Button>
                   <Button 
                     className="flex-1 rounded-xl h-11 text-sm font-semibold shadow-sm"
-                    onClick={(e) => handleWhatsApp(e, car.name)}
+                    onClick={(e) => handleWhatsApp(e, car)}
                     disabled={car.availability === "Booked"}
                   >
                     Book
@@ -228,6 +229,10 @@ export function Fleet() {
         car={selectedCar} 
         isOpen={!!selectedCar} 
         onClose={() => setSelectedCar(null)} 
+        onBook={() => {
+          setBookingCar(selectedCar);
+          setSelectedCar(null);
+        }}
       />
 
       <CompareVehiclesModal
@@ -235,6 +240,16 @@ export function Fleet() {
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
         onRemove={(id) => setCompareIds(prev => prev.filter(cId => cId !== id))}
+        onBook={(car) => {
+          setBookingCar(car);
+          setIsCompareOpen(false);
+        }}
+      />
+
+      <BookingModal 
+        isOpen={!!bookingCar}
+        onClose={() => setBookingCar(null)}
+        car={bookingCar}
       />
 
     </section>

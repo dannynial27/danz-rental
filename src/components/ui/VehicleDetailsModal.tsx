@@ -11,9 +11,10 @@ interface VehicleDetailsModalProps {
   car: Car | null;
   isOpen: boolean;
   onClose: () => void;
+  onBook?: () => void;
 }
 
-export function VehicleDetailsModal({ car, isOpen, onClose }: VehicleDetailsModalProps) {
+export function VehicleDetailsModal({ car, isOpen, onClose, onBook }: VehicleDetailsModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [days, setDays] = useState(1);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -45,12 +46,9 @@ export function VehicleDetailsModal({ car, isOpen, onClose }: VehicleDetailsModa
   const prevImage = () => setActiveImage((prev) => (prev === 0 ? car.gallery.length - 1 : prev - 1));
 
   const handleBook = () => {
-    const message = encodeURIComponent(
-      `Hi DANZ RENTAL, I want to book the ${car.name}.\n` +
-      `Duration: ${days} days\n` +
-      `Estimated Total: RM${totalPrice} (including RM${car.deposit} deposit)`
-    );
-    window.location.href = `https://wa.me/60124516452?text=${message}`;
+    if (onBook) {
+      onBook();
+    }
   };
 
   return (
@@ -211,8 +209,8 @@ export function VehicleDetailsModal({ car, isOpen, onClose }: VehicleDetailsModa
                   className="w-full h-12 text-base font-semibold shadow-xl shadow-primary/20 gap-2"
                   disabled={car.availability === "Booked"}
                 >
-                  <MessageCircle className="w-5 h-5" />
-                  {car.availability === "Booked" ? "Currently Unavailable" : "Book via WhatsApp"}
+                  <CarFront className="w-5 h-5" />
+                  {car.availability === "Booked" ? "Currently Unavailable" : "Book Now"}
                 </Button>
               </div>
 

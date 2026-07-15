@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon, MapPin, CarFront, MessageCircle } from "lucid
 import { Button } from "@/components/ui/button";
 import { useCars } from "@/context/CarsContext";
 import { BookingProgressIndicator } from "@/components/ui/BookingProgressIndicator";
+import { BookingModal } from "@/components/ui/BookingModal";
 
 export function QuickBookingWidget() {
   const { cars, loading } = useCars();
@@ -30,6 +31,7 @@ export function QuickBookingWidget() {
   const [returnDate, setReturnDate] = useState<string>("");
   const [pickupLocation, setPickupLocation] = useState<string>("Penang International Airport (PEN)");
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   const handleBookNow = () => {
     if (!selectedCar || !pickupDate || !returnDate) {
@@ -40,11 +42,13 @@ export function QuickBookingWidget() {
     setIsRedirecting(true);
   };
 
-  const handleContinueToWhatsApp = () => {
-    const carName = cars.find(c => c.name === selectedCar)?.name || "a car";
-    const message = encodeURIComponent(`Hi DANZ RENTAL, I would like to book:\n\n🚗 Vehicle: ${carName}\n📅 Pickup: ${pickupDate}\n📅 Return: ${returnDate}\n📍 Location: ${pickupLocation}\n\nPlease let me know if it's available.`);
-    window.location.href = `https://wa.me/60124516452?text=${message}`;
+  const handleContinueToBooking = () => {
     setIsRedirecting(false);
+    setIsBookingOpen(true);
+  };
+
+  const getSelectedCarObject = () => {
+    return cars.find(c => c.name === selectedCar) || null;
   };
 
   return (
@@ -115,7 +119,7 @@ export function QuickBookingWidget() {
                 onClick={handleBookNow}
                 className="w-full md:w-auto rounded-xl px-6 py-5 shadow-lg shadow-primary/20 gap-2 whitespace-nowrap"
               >
-                <MessageCircle className="w-5 h-5" />
+                <CarFront className="w-5 h-5" />
                 Book Now
               </Button>
             </div>
@@ -125,7 +129,19 @@ export function QuickBookingWidget() {
 
       <BookingProgressIndicator 
         isVisible={isRedirecting} 
-        onComplete={handleContinueToWhatsApp} 
+        onComplete={handleContinueToBooking} 
+      />
+
+      <BookingModal
+        isOpen={isBookingOpen}
+        onClose={() => setIsBookingOpen(false)}
+        car={getSelectedCarObject()}
+        initialData={{
+          pickupDate,
+          returnDate,
+          pickupLocation,
+          returnLocation: pickupLocation, // Default return to same as pickup
+        }}
       />
     </>
   );

@@ -11,9 +11,10 @@ interface CompareVehiclesModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRemove: (carId: number) => void;
+  onBook?: (car: Car) => void;
 }
 
-export function CompareVehiclesModal({ cars, isOpen, onClose, onRemove }: CompareVehiclesModalProps) {
+export function CompareVehiclesModal({ cars, isOpen, onClose, onRemove, onBook }: CompareVehiclesModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -131,8 +132,7 @@ export function CompareVehiclesModal({ cars, isOpen, onClose, onRemove }: Compar
                         <Button 
                           className="w-full rounded-xl" 
                           onClick={() => {
-                            const message = encodeURIComponent(`Hi DANZ RENTAL, I am interested in renting the ${car.name}. Is it available?`);
-                            window.location.href = `https://wa.me/60124516452?text=${message}`;
+                            if (onBook) onBook(car);
                           }}
                           disabled={car.availability === "Booked"}
                         >
