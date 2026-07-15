@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { PromotionBanner } from "@/components/sections/PromotionBanner";
 
 const navLinks = [
   { name: "Home", href: "#home" },
@@ -37,56 +38,62 @@ export function Navigation() {
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className={`fixed top-0 left-0 right-0 z-[70] transition-all duration-500 ${
         isScrolled
-          ? "bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-slate-200/50 dark:border-slate-800/50 shadow-[0_4px_30px_rgba(0,0,0,0.05)] py-3"
-          : "bg-transparent py-5"
+          ? "bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-slate-200/50 dark:border-slate-800/50 shadow-[0_4px_30px_rgba(0,0,0,0.05)]"
+          : "bg-transparent"
       }`}
     >
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 flex items-center justify-between relative z-[80]">
-        <Logo isScrolled={isScrolled} />
+      <div className={isScrolled ? "hidden" : "block"}>
+        <PromotionBanner />
+      </div>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((link, i) => (
-            <motion.a
-              key={link.name}
-              href={link.href}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.1, duration: 0.5, ease: "easeOut" }}
-              className={`text-sm font-medium transition-colors hover:text-primary relative group ${
-                isScrolled ? "text-slate-600 dark:text-slate-300" : "text-slate-800 dark:text-slate-200"
-              }`}
-            >
-              {link.name}
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-            </motion.a>
-          ))}
-        </nav>
+      <div className={`py-3 md:py-5 transition-all duration-500`}>
+        <div className="container mx-auto px-4 md:px-6 lg:px-8 flex items-center justify-between relative z-[80]">
+          <Logo isScrolled={isScrolled} />
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.6, duration: 0.5 }}
-          className="hidden md:block"
-        >
-          <Button
-            size="lg"
-            className="rounded-full gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
-            onClick={handleWhatsApp}
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-8">
+            {navLinks.map((link, i) => (
+              <motion.a
+                key={link.name}
+                href={link.href}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.1, duration: 0.5, ease: "easeOut" }}
+                className={`text-sm font-medium transition-colors hover:text-primary relative group ${
+                  isScrolled ? "text-slate-600 dark:text-slate-300" : "text-slate-800 dark:text-slate-200"
+                }`}
+              >
+                {link.name}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+              </motion.a>
+            ))}
+          </nav>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="hidden md:block"
           >
-            <MessageCircle className="w-4 h-4" />
-            <span>Book via WhatsApp</span>
-          </Button>
-        </motion.div>
+            <Button
+              size="lg"
+              className="rounded-full gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+              onClick={handleWhatsApp}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Book via WhatsApp</span>
+            </Button>
+          </motion.div>
 
-        {/* Mobile Menu Toggle */}
-        <button
-          className="md:hidden p-2 text-slate-800 dark:text-slate-200 z-[90] relative"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+          {/* Mobile Menu Toggle */}
+          <button
+            className="md:hidden p-2 text-slate-800 dark:text-slate-200 z-[90] relative"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Nav - Full Screen Overlay */}

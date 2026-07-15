@@ -24,7 +24,6 @@ export default function Home() {
     <>
       <LoadingScreen />
       <ScrollProgress />
-      <PromotionBanner />
       <Navigation />
       <main className="flex-grow">
         <Hero />
