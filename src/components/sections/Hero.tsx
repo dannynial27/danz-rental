@@ -19,7 +19,7 @@ export function Hero() {
   };
 
   return (
-    <section id="home" className="relative min-h-screen pt-32 pb-20 overflow-hidden flex items-center">
+    <section id="home" className="relative min-h-screen pt-48 md:pt-40 lg:pt-32 pb-20 overflow-hidden flex items-center">
       {/* Background with slight gradient and animated blob */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 -z-20" />
       
