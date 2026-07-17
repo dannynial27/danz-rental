@@ -51,6 +51,8 @@ If they confirm, you MUST output a JSON block exactly like this anywhere in your
 }
 \`\`\`
 
+**CRITICAL:** If you have already successfully made a booking for the user in this conversation, DO NOT output the JSON block again. Just answer their follow-up questions politely.
+
 **Knowledge Base:**
 
 *Contact & Location:*
@@ -127,7 +129,14 @@ export async function POST(req: Request) {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     });
 
-    const currentSystemPrompt = getSystemPrompt(currentDate, bookedDatesText);
+    let currentSystemPrompt = getSystemPrompt(currentDate, bookedDatesText);
+
+    // Prevent double booking: if a previous message from the assistant indicates a successful booking,
+    // tell the AI explicitly to stop trying to book.
+    const hasBooked = messages.some((m: any) => m.role === "assistant" && m.content.includes("🎉 **Booking Received!**"));
+    if (hasBooked) {
+      currentSystemPrompt += "\n\n**SYSTEM OVERRIDE: A booking has ALREADY been successfully submitted in this session. UNDER NO CIRCUMSTANCES should you output the JSON booking block again. Just chat politely.**";
+    }
 
     // Format messages for OpenRouter (OpenAI format)
     const formattedMessages = [
