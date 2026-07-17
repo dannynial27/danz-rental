@@ -2,39 +2,49 @@
 
 import React, { useState, useEffect } from "react";
 import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Lock, LogOut, CheckCircle, XCircle } from "lucide-react";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, User } from "firebase/auth";
+import { db, auth } from "@/lib/firebase";
+import { Lock, LogOut, CheckCircle, XCircle, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const auth = localStorage.getItem("danz_admin_auth");
-      if (auth === "true") setIsAuthenticated(true);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const correctPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "DANZ2026";
-    
-    if (passcode === correctPasscode) {
-      setIsAuthenticated(true);
-      localStorage.setItem("danz_admin_auth", "true");
-    } else {
-      alert("Incorrect passcode");
+    setLoginError("");
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      setLoginError("Invalid email or password.");
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem("danz_admin_auth");
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   const fetchBookings = async () => {
@@ -54,10 +64,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       fetchBookings();
     }
-  }, [isAuthenticated]);
+  }, [user]);
 
   const updateStatus = async (id: string, newStatus: string) => {
     try {
@@ -82,7 +92,26 @@ export default function AdminPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  const filteredBookings = bookings.filter(booking => {
+    const matchesSearch = 
+      booking.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.phone?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === "All" || booking.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  if (authLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="max-w-md mx-auto mt-20 p-8 bg-white dark:bg-slate-950 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
         <div className="flex flex-col items-center mb-8">
@@ -90,18 +119,33 @@ export default function AdminPage() {
             <Lock className="w-10 h-10 text-primary" />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Admin Access</h1>
-          <p className="text-slate-500 text-center mt-3 font-medium">Enter the secure passcode to access the booking dashboard.</p>
+          <p className="text-slate-500 text-center mt-3 font-medium">Sign in to access the booking dashboard.</p>
         </div>
         
-        <form onSubmit={handleLogin} className="space-y-6">
+        {loginError && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm font-medium rounded-xl border border-red-100 text-center">
+            {loginError}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input 
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Admin Email"
+            className="w-full px-4 py-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+            required
+          />
           <input 
             type="password"
-            value={passcode}
-            onChange={(e) => setPasscode(e.target.value)}
-            placeholder="Enter passcode"
-            className="w-full px-4 py-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 text-center tracking-[0.2em] text-xl font-bold"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full px-4 py-4 rounded-xl border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+            required
           />
-          <Button type="submit" className="w-full rounded-xl h-14 text-lg font-bold shadow-xl shadow-primary/20">
+          <Button type="submit" className="w-full rounded-xl h-14 text-lg font-bold shadow-xl shadow-primary/20 mt-2">
             Login to Dashboard
           </Button>
         </form>
@@ -111,7 +155,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Dashboard Overview</h1>
           <p className="text-slate-500 mt-2 font-medium">Manage your fleet bookings and reservations.</p>
@@ -124,6 +168,35 @@ export default function AdminPage() {
           <Button variant="destructive" onClick={handleLogout} className="rounded-xl gap-2 font-semibold">
             <LogOut className="w-4 h-4" /> Logout
           </Button>
+        </div>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by name, email, or phone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white"
+          />
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none text-slate-900 dark:text-white font-medium cursor-pointer"
+          >
+            <option value="All">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Completed">Completed</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
         </div>
       </div>
 
@@ -141,14 +214,14 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {bookings.length === 0 ? (
+              {filteredBookings.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-16 text-center text-slate-500 font-medium text-lg">
-                    {loading ? "Loading bookings..." : "No bookings found yet. They will appear here when submitted!"}
+                    {loading ? "Loading bookings..." : "No bookings found matching your filters."}
                   </td>
                 </tr>
               ) : (
-                bookings.map((booking) => (
+                filteredBookings.map((booking) => (
                   <tr key={booking.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-900/80 transition-colors">
                     <td className="px-6 py-5">
                       <div className="font-bold text-slate-900 dark:text-white text-base">{booking.name}</div>
