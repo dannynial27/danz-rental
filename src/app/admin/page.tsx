@@ -116,6 +116,32 @@ export default function AdminPage() {
     }
   };
 
+  const disableNotifications = async () => {
+    try {
+      const supported = await isSupported();
+      if (!supported) return;
+
+      const messaging = getMessaging(app);
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY;
+      const currentToken = await getToken(messaging, { vapidKey });
+
+      if (currentToken) {
+        const response = await fetch(`/api/register-token?token=${currentToken}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          setNotificationsEnabled(false);
+          alert("Push notifications disabled.");
+        } else {
+          alert("Failed to disable notifications.");
+        }
+      }
+    } catch (error) {
+      console.error('Error disabling notifications:', error);
+    }
+  };
+
   const fetchBookings = async () => {
     setLoading(true);
     try {
@@ -233,12 +259,12 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
-            onClick={enableNotifications} 
+            onClick={notificationsEnabled ? disableNotifications : enableNotifications} 
             className={`rounded-xl font-semibold border-2 ${notificationsEnabled ? 'border-primary text-primary bg-primary/10' : 'border-slate-200'}`}
-            title="Enable Push Notifications"
+            title={notificationsEnabled ? "Disable Push Notifications" : "Enable Push Notifications"}
           >
             {notificationsEnabled ? <BellRing className="w-4 h-4 animate-pulse" /> : <Bell className="w-4 h-4" />}
-            <span className="hidden sm:inline ml-2">{notificationsEnabled ? "Alerts On" : "Enable Alerts"}</span>
+            <span className="hidden sm:inline ml-2">{notificationsEnabled ? "Disable Alerts" : "Enable Alerts"}</span>
           </Button>
           <Button variant="outline" onClick={fetchBookings} disabled={loading} className="rounded-xl font-semibold border-2 border-slate-200">
             {loading ? "Refreshing..." : "Refresh Data"}

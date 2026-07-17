@@ -25,3 +25,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
+
+    if (!token) {
+      return NextResponse.json({ error: 'Token is required' }, { status: 400 });
+    }
+
+    if (!adminDb) {
+      return NextResponse.json({ error: 'Admin DB not initialized' }, { status: 500 });
+    }
+
+    await adminDb.collection('admin_tokens').doc(token).delete();
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting token:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
