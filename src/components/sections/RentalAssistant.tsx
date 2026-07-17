@@ -116,7 +116,7 @@ export function RentalAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.3, type: "spring", bounce: 0.3 }}
-            className="fixed bottom-24 right-4 md:right-8 w-[calc(100vw-32px)] md:w-[400px] h-[600px] max-h-[80vh] z-50 flex flex-col bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl rounded-3xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] border border-white/40 dark:border-slate-800/60 overflow-hidden"
+            className="fixed bottom-24 right-4 md:right-8 w-[calc(100vw-32px)] md:w-[400px] h-[600px] max-h-[80vh] z-[100] flex flex-col bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl rounded-3xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] border border-white/40 dark:border-slate-800/60 overflow-hidden"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-primary to-blue-600 p-4 md:p-5 flex justify-between items-center text-white shrink-0 shadow-md">
@@ -138,7 +138,7 @@ export function RentalAssistant() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 scroll-smooth">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -147,7 +147,7 @@ export function RentalAssistant() {
                   }`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl p-3 md:p-4 text-sm leading-relaxed ${
+                    className={`max-w-[85%] rounded-2xl p-3 md:p-4 text-sm leading-relaxed break-words whitespace-pre-wrap ${
                       msg.role === "user"
                         ? "bg-primary text-white rounded-br-none shadow-md"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none border border-slate-200/50 dark:border-slate-700/50 shadow-sm"
@@ -236,7 +236,7 @@ export function RentalAssistant() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-4 md:bottom-8 md:right-8 z-50 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-primary to-blue-600 text-white rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] flex items-center justify-center hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] transition-shadow group"
+        className="fixed bottom-6 right-4 md:bottom-8 md:right-8 z-[100] w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-primary to-blue-600 text-white rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] flex items-center justify-center hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] transition-shadow group"
       >
         <div className="absolute inset-0 bg-white/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
         {isOpen ? <X className="w-6 h-6 md:w-8 md:h-8 relative z-10" /> : <Bot className="w-6 h-6 md:w-8 md:h-8 relative z-10" />}
