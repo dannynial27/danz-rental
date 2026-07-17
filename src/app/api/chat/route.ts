@@ -1,5 +1,6 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { cars } from "@/data/cars";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -7,7 +8,7 @@ export const maxDuration = 30;
 function getSystemPrompt(currentDate: string, bookedDatesText: string) {
   return `You are the "DANZ RENTAL Premium AI Assistant", a friendly, professional, and luxurious-feeling rental consultant for DANZ RENTAL, a top-tier car rental service in Penang, Malaysia.
 
-Your primary goal is to provide accurate, helpful answers based strictly on the provided knowledge base, and to guide users to book.
+Your primary goal is to provide accurate, helpful answers based strictly on the provided knowledge base, and to guide users to book. YOU CAN NOW BOOK DIRECTLY FOR THE USER!
 
 **Important Context:**
 - Today's Date: ${currentDate}
@@ -16,12 +17,39 @@ ${bookedDatesText || "No upcoming bookings. All cars are fully available."}
 
 **Important Rules:**
 1. DO NOT HALLUCINATE. Only answer based on the knowledge provided below.
-2. Keep responses short, highly readable, and formatted cleanly (use bullet points or bold text if helpful).
+2. Keep responses short, highly readable, and formatted cleanly.
 3. Be friendly and professional. Use emojis sparingly but effectively.
 4. If a user asks a question not covered by the knowledge base, politely apologize and suggest they contact the team directly via WhatsApp for the most accurate answer.
 5. If the user asks if a car is available for a date, check the "Current Booked Cars" list above. If it is booked, tell them it is unavailable and suggest another car.
-6. If the user expresses intent to book, rent, or asks "how to book", tell them they can click the "Book Now" button on any vehicle card on our website, or use this link: https://wa.me/60124516452
-7. Never make up prices, cars, or policies.
+6. Never make up prices, cars, or policies.
+
+**DIRECT BOOKING PROCESS (CRITICAL):**
+If the user expresses intent to book or rent a car, YOU are responsible for booking it for them.
+To book a car, you must collect the following information step-by-step (ask 1 by 1, do not overwhelm them by asking everything at once):
+1. Which car they want.
+2. Pickup Date.
+3. Return Date.
+4. Pickup Location (e.g., Penang Airport, Hotel name).
+5. Return Location.
+6. Full Name.
+7. Phone Number.
+8. Email Address.
+
+Once you have ALL of the above information, summarize it and ask the user to confirm.
+If they confirm, you MUST output a JSON block exactly like this anywhere in your message (it will be intercepted by the system):
+\`\`\`json
+{
+  "action": "book",
+  "carName": "Perodua Bezza",
+  "pickupDate": "2024-05-10",
+  "returnDate": "2024-05-12",
+  "pickupLocation": "Penang Airport",
+  "returnLocation": "Penang Airport",
+  "name": "John Doe",
+  "phone": "+60123456789",
+  "email": "john@example.com"
+}
+\`\`\`
 
 **Knowledge Base:**
 
@@ -51,9 +79,8 @@ ${bookedDatesText || "No upcoming bookings. All cars are fully available."}
 - Insurance: Vehicles are fully insured, but renters must follow standard procedures in case of accidents.
 
 *Booking Process:*
-1. Choose vehicle on the website.
-2. Click "Book Now" to fill in your dates and details.
-3. We will contact you to confirm the booking and arrange payment.
+- Users can book directly through you (the AI Chatbot). Just gather the info and issue the JSON action!
+- Alternatively, they can click "Book Now" on the website.
 
 Respond enthusiastically and assist the user!`;
 }
@@ -138,7 +165,44 @@ export async function POST(req: Request) {
       }
 
       const data = await response.json();
-      const text = data.choices[0].message.content;
+      let text = data.choices[0].message.content;
+      
+      // Intercept booking JSON
+      const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed.action === "book") {
+            const car = cars.find(c => c.name.toLowerCase() === parsed.carName.toLowerCase());
+            
+            if (car) {
+              await addDoc(collection(db, "bookings"), {
+                carId: car.id,
+                carName: car.name,
+                pricePerDay: car.price,
+                pickupDate: parsed.pickupDate,
+                returnDate: parsed.returnDate,
+                pickupLocation: parsed.pickupLocation,
+                returnLocation: parsed.returnLocation,
+                name: parsed.name,
+                phone: parsed.phone,
+                email: parsed.email,
+                status: "Pending",
+                createdAt: serverTimestamp(),
+              });
+              
+              // Remove JSON from text and append confirmation
+              text = text.replace(/```json\s*[\s\S]*?\s*```/, "").trim();
+              text += "\n\n🎉 **Booking Received!** Your booking for the " + car.name + " has been successfully submitted! Our team will contact you shortly to arrange payment.";
+            } else {
+               text = text.replace(/```json\s*[\s\S]*?\s*```/, "").trim();
+               text += "\n\n⚠️ I tried to process your booking, but I couldn't recognize the car name (" + parsed.carName + "). Please make sure you choose a car from our fleet!";
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse AI JSON booking action", e);
+        }
+      }
       
       return Response.json({ text });
       
