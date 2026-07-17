@@ -31,6 +31,30 @@ export default function AdminPage() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      import("firebase/messaging").then(({ getMessaging, onMessage, isSupported }) => {
+        isSupported().then((supported) => {
+          if (supported) {
+            const messaging = getMessaging(app);
+            onMessage(messaging, (payload) => {
+              console.log("Message received in foreground: ", payload);
+              // Show a native notification even if the tab is open
+              if (Notification.permission === "granted" && payload.notification) {
+                new Notification(payload.notification.title || "New Alert", {
+                  body: payload.notification.body,
+                  icon: '/favicon.ico'
+                });
+              }
+              // Also refresh the bookings automatically
+              fetchBookings();
+            });
+          }
+        });
+      });
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
