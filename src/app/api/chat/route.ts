@@ -200,6 +200,30 @@ export async function POST(req: Request) {
                 createdAt: serverTimestamp(),
               });
               
+              // Trigger push notification to admins
+              try {
+                // We use dynamic import so we don't break edge runtime if admin sdk fails
+                const { adminMessaging } = await import("@/lib/firebase-admin");
+                if (adminMessaging) {
+                  const tokensSnapshot = await getDocs(collection(db, 'admin_tokens'));
+                  const tokens: string[] = [];
+                  tokensSnapshot.forEach(doc => tokens.push(doc.data().token));
+
+                  if (tokens.length > 0) {
+                    await adminMessaging.sendEachForMulticast({
+                      tokens: tokens,
+                      notification: {
+                        title: 'New AI Booking! 🤖',
+                        body: `${parsed.name} booked a ${car.name} via Chatbot!`,
+                      },
+                      data: { click_action: 'https://danzrental.com/admin' }
+                    });
+                  }
+                }
+              } catch (pushErr) {
+                console.error("AI Push notification failed", pushErr);
+              }
+              
               // Remove JSON from text and append confirmation
               text = text.replace(/```json\s*[\s\S]*?\s*```/, "").trim();
               text += "\n\n🎉 **Booking Received!** Your booking for the " + car.name + " has been successfully submitted! Our team will contact you shortly to arrange payment.";

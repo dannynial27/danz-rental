@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, orderBy, setDoc } from "firebase/firestore";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, User } from "firebase/auth";
-import { db, auth } from "@/lib/firebase";
-import { Lock, LogOut, CheckCircle, XCircle, Search, Filter } from "lucide-react";
+import { getMessaging, getToken, isSupported } from "firebase/messaging";
+import { db, auth, app } from "@/lib/firebase";
+import { Lock, LogOut, CheckCircle, XCircle, Search, Filter, Bell, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,6 +18,7 @@ export default function AdminPage() {
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -44,6 +46,41 @@ export default function AdminPage() {
       await signOut(auth);
     } catch (error) {
       console.error("Error signing out:", error);
+    }
+  };
+
+  const enableNotifications = async () => {
+    try {
+      const supported = await isSupported();
+      if (!supported) {
+        alert("Push notifications are not supported in this browser.");
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const messaging = getMessaging(app);
+        // Provide the VAPID key from environment or prompt
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY; 
+        
+        const currentToken = await getToken(messaging, { vapidKey });
+        if (currentToken) {
+          // Save the token to Firestore
+          await setDoc(doc(db, "admin_tokens", currentToken), {
+            token: currentToken,
+            createdAt: new Date().toISOString(),
+            userEmail: user?.email
+          });
+          setNotificationsEnabled(true);
+          alert("Push notifications enabled! You will now receive alerts for new bookings.");
+        } else {
+          console.log('No registration token available.');
+        }
+      } else {
+        alert("Permission denied. You can enable it in your browser settings.");
+      }
+    } catch (error) {
+      console.error('An error occurred while retrieving token. ', error);
     }
   };
 
@@ -162,6 +199,15 @@ export default function AdminPage() {
         </div>
         
         <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            onClick={enableNotifications} 
+            className={`rounded-xl font-semibold border-2 ${notificationsEnabled ? 'border-primary text-primary bg-primary/10' : 'border-slate-200'}`}
+            title="Enable Push Notifications"
+          >
+            {notificationsEnabled ? <BellRing className="w-4 h-4 animate-pulse" /> : <Bell className="w-4 h-4" />}
+            <span className="hidden sm:inline ml-2">{notificationsEnabled ? "Alerts On" : "Enable Alerts"}</span>
+          </Button>
           <Button variant="outline" onClick={fetchBookings} disabled={loading} className="rounded-xl font-semibold border-2 border-slate-200">
             {loading ? "Refreshing..." : "Refresh Data"}
           </Button>

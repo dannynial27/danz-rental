@@ -132,16 +132,25 @@ export function BookingModal({ isOpen, onClose, car, initialData }: BookingModal
         return;
       }
 
-      await addDoc(collection(db, "bookings"), {
-        ...formData,
-        pickupDate: pickupDateStr,
-        returnDate: returnDateStr,
-        carId: car.id,
-        carName: car.name,
-        pricePerDay: car.price,
-        status: "Pending",
-        createdAt: serverTimestamp(),
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData,
+          pickupDate: pickupDateStr,
+          returnDate: returnDateStr,
+          carId: car.id,
+          carName: car.name,
+          pricePerDay: car.price
+        })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit booking');
+      }
+
       setStatus("success");
     } catch (error) {
       console.error("Error submitting booking:", error);
