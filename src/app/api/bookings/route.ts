@@ -1,24 +1,25 @@
 import { NextResponse } from 'next/server';
-import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { adminMessaging } from '@/lib/firebase-admin';
+import { adminMessaging, adminDb } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(req: Request) {
   try {
     const data = await req.json();
 
-    // Save to Firestore
-    const docRef = await addDoc(collection(db, 'bookings'), {
+    // Save to Firestore securely via Admin SDK
+    if (!adminDb) throw new Error("Firebase Admin not initialized");
+    
+    const docRef = await adminDb.collection('bookings').add({
       ...data,
       status: 'Pending',
-      createdAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
 
     // Send Push Notification
     try {
-      if (adminMessaging) {
-        // Get all admin tokens
-        const tokensSnapshot = await getDocs(collection(db, 'admin_tokens'));
+      if (adminMessaging && adminDb) {
+        // Get all admin tokens using Admin SDK (bypasses security rules)
+        const tokensSnapshot = await adminDb.collection('admin_tokens').get();
         const tokens: string[] = [];
         tokensSnapshot.forEach(doc => {
           tokens.push(doc.data().token);

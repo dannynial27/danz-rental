@@ -203,9 +203,9 @@ export async function POST(req: Request) {
               // Trigger push notification to admins
               try {
                 // We use dynamic import so we don't break edge runtime if admin sdk fails
-                const { adminMessaging } = await import("@/lib/firebase-admin");
-                if (adminMessaging) {
-                  const tokensSnapshot = await getDocs(collection(db, 'admin_tokens'));
+                const { adminMessaging, adminDb } = await import("@/lib/firebase-admin");
+                if (adminMessaging && adminDb) {
+                  const tokensSnapshot = await adminDb.collection('admin_tokens').get();
                   const tokens: string[] = [];
                   tokensSnapshot.forEach(doc => tokens.push(doc.data().token));
 
