@@ -65,22 +65,30 @@ export default function AdminPage() {
         
         const currentToken = await getToken(messaging, { vapidKey });
         if (currentToken) {
-          // Save the token to Firestore
-          await setDoc(doc(db, "admin_tokens", currentToken), {
-            token: currentToken,
-            createdAt: new Date().toISOString(),
-            userEmail: user?.email
+          // Save the token to Firestore via Admin API to bypass security rules
+          const response = await fetch('/api/register-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: currentToken, email: user?.email })
           });
+          
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to register token');
+          }
+
           setNotificationsEnabled(true);
           alert("Push notifications enabled! You will now receive alerts for new bookings.");
         } else {
           console.log('No registration token available.');
+          alert("Failed to get push token.");
         }
       } else {
         alert("Permission denied. You can enable it in your browser settings.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('An error occurred while retrieving token. ', error);
+      alert("Error enabling notifications: " + error.message);
     }
   };
 
