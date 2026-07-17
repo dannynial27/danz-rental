@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, query, orderBy, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, User } from "firebase/auth";
 import { getMessaging, getToken, isSupported } from "firebase/messaging";
 import { db, auth, app } from "@/lib/firebase";
-import { Lock, LogOut, CheckCircle, XCircle, Search, Filter, Bell, BellRing } from "lucide-react";
+import { Lock, LogOut, CheckCircle, XCircle, Search, Filter, Bell, BellRing, TrendingUp, Car, Calendar, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -39,14 +40,12 @@ export default function AdminPage() {
             const messaging = getMessaging(app);
             onMessage(messaging, (payload) => {
               console.log("Message received in foreground: ", payload);
-              // Show a native notification even if the tab is open
               if (Notification.permission === "granted" && payload.notification) {
                 new Notification(payload.notification.title || "New Alert", {
                   body: payload.notification.body,
                   icon: '/favicon.ico'
                 });
               }
-              // Also refresh the bookings automatically
               fetchBookings();
             });
           }
@@ -84,12 +83,10 @@ export default function AdminPage() {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        // Provide the VAPID key from environment or prompt
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_KEY; 
         
         const currentToken = await getToken(messaging, { vapidKey });
         if (currentToken) {
-          // Save the token to Firestore via Admin API to bypass security rules
           const response = await fetch('/api/register-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -198,6 +195,50 @@ export default function AdminPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // --- ANALYTICS CALCULATIONS ---
+  const calculateDays = (start: string, end: string) => {
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    const days = Math.ceil(diff / (1000 * 3600 * 24));
+    return days > 0 ? days : 1;
+  };
+
+  const totalBookings = bookings.length;
+  const pendingBookings = bookings.filter(b => b.status === 'Pending').length;
+  
+  let totalRevenue = 0;
+  const revenueByMonth: Record<string, number> = {};
+  const carPopularity: Record<string, number> = {};
+
+  bookings.forEach(b => {
+    if (b.status === 'Approved' || b.status === 'Completed') {
+      const days = calculateDays(b.pickupDate, b.returnDate);
+      const revenue = days * (Number(b.pricePerDay) || 0);
+      totalRevenue += revenue;
+
+      const date = b.createdAt ? new Date(b.createdAt) : new Date(b.pickupDate);
+      // Format as "MMM DD" or just "MMM" if we have lots of data. We'll use local date string to group.
+      const dateStr = date.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+      revenueByMonth[dateStr] = (revenueByMonth[dateStr] || 0) + revenue;
+    }
+
+    if (b.status !== 'Cancelled' && b.status !== 'Rejected') {
+      carPopularity[b.carName] = (carPopularity[b.carName] || 0) + 1;
+    }
+  });
+
+  const revenueChartData = Object.keys(revenueByMonth).map(date => ({
+    name: date,
+    Revenue: revenueByMonth[date]
+  })).reverse(); // Assuming descending from DB
+
+  const carChartData = Object.keys(carPopularity).map(car => ({
+    name: car.split(' ')[0] + ' ' + (car.split(' ')[1] || ''), // Shorten name
+    value: carPopularity[car]
+  })).sort((a, b) => b.value - a.value).slice(0, 5);
+
+  const COLORS = ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+  // -----------------------------
+
   if (authLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -274,6 +315,116 @@ export default function AdminPage() {
           </Button>
         </div>
       </div>
+
+      {/* --- ANALYTICS SECTION --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+            <DollarSign className="w-7 h-7" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Revenue</p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white">RM {totalRevenue.toLocaleString()}</h2>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+            <Calendar className="w-7 h-7" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Bookings</p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white">{totalBookings}</h2>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+            <Bell className="w-7 h-7" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Pending Action</p>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white">{pendingBookings}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Revenue Trend</h2>
+          </div>
+          <div className="h-72 w-full">
+            {revenueChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} tickFormatter={(val) => `RM${val}`} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ fontWeight: 'bold', color: '#0ea5e9' }}
+                  />
+                  <Area type="monotone" dataKey="Revenue" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 font-medium">Not enough data yet.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <Car className="w-5 h-5 text-purple-500" />
+            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Top Vehicles</h2>
+          </div>
+          <div className="h-72 w-full">
+            {carChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={carChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {carChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ fontWeight: 'bold' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 font-medium">Not enough data yet.</div>
+            )}
+          </div>
+          <div className="mt-2 space-y-2">
+            {carChartData.map((car, idx) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{car.name}</span>
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">{car.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* ----------------------------- */}
 
       {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row gap-4">
